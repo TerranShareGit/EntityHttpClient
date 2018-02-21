@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -10,12 +12,32 @@ namespace AnyEntityClient
     {
         private readonly HttpClient client = new HttpClient();
 
-        public WebApiHelper()
+        public WebApiHelper(string username, string password)
         {
             client.BaseAddress = new Uri("http://localhost:7265/");
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "wcSPGhcjd5efL2VYj77NOA3Mg2s_RLKD19O_hQJ9Mztocy0m_1m8CJkDAOSpVLIycSntQeY45_xTN5DHfZzcysWlXhxiT4T1YafaKGfvbfnR_kCybPIF7qgQm5RR9jbbQ52V7BR5_gUWCAHRe5xcDjLf0_eTJASrC80mIaHWxoeXIzOqF4p3z5-mL8HL3pl8Pew4ky4PiLmVUDSWuHTOGC3ACfqRiTR2kmGkInq6DpEiefvGILp3Mgcrje4VFCaRr9Sb33S3-56szBCA4oEk_NxY2TTETNQ-_KVVqu4D5oM");
+
+            var token = GetTokenAsync(username, password).Result;
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        }
+
+        public async Task<string> GetTokenAsync(string username, string password)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "/oauth/token");
+            var formData = new List<KeyValuePair<string, string>>();
+            formData.Add(new KeyValuePair<string, string>("grant_type", "password"));
+            formData.Add(new KeyValuePair<string, string>("username", username));
+            formData.Add(new KeyValuePair<string, string>("password", password));
+            formData.Add(new KeyValuePair<string, string>("scope", "all"));
+
+            request.Content = new FormUrlEncodedContent(formData);
+            var response = await client.SendAsync(request);
+
+            var bearerData = await response.Content.ReadAsStringAsync();
+            var bearerToken = JObject.Parse(bearerData)["access_token"].ToString();
+
+            return bearerToken;
         }
 
         public void ShowAnyEntity(AnyEntity entity)
